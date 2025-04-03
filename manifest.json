@@ -3,7 +3,7 @@
   "name": "Voice2Text",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "将语音转换为文字并保存到Obsidian笔记中，支持中文识别",
+  "description": "将语音转换为文字并保存到笔记中，支持中文识别",
   "author": "xuefeng.ai",
   "authorUrl": "https://github.com/Alllen66",
   "isDesktopOnly": false,
