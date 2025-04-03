@@ -1,8 +1,8 @@
-# Obsidian Voice to Text Plugin
+#  Voice to Text Plugin
 
-将语音转换为文字并保存到 Obsidian 笔记中。使用 OpenAI Whisper API 进行高质量的语音识别。
+将语音转换为文字并保存到  笔记中。使用 OpenAI Whisper API 进行高质量的语音识别。
 
-Turn voice into text in your Obsidian notes using OpenAI Whisper API for high-quality speech recognition.
+Turn voice into text in your  notes using OpenAI Whisper API for high-quality speech recognition.
 
 ## 功能特点 / Features
 
@@ -37,7 +37,7 @@ Turn voice into text in your Obsidian notes using OpenAI Whisper API for high-qu
 
 ## 安装 / Installation
 
-1. 在 Obsidian 中打开设置 / Open Settings in Obsidian
+1. 在  中打开设置 / Open Settings in 
 2. 进入第三方插件 / Go to Third-party plugins
 3. 关闭安全模式 / Turn off Safe mode
 4. 点击浏览社区插件 / Click Browse community plugins
