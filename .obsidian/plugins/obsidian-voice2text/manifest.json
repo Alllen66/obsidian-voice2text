@@ -1,0 +1,11 @@
+{
+  "id": "obsidian-voice2text",
+  "name": "Voice to Text",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "将语音转换为文字并保存到 Obsidian 笔记中",
+  "author": "Allen Liu",
+  "isDesktopOnly": false,
+  "fundingUrl": "",
+  "authorUrl": ""
+}

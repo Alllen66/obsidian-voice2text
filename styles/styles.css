@@ -1,0 +1,287 @@
+.voice-recorder-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background-color: var(--background-secondary);
+  border-radius: 4px;
+}
+
+.voice-recorder-button {
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+}
+
+.voice-recorder-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.recording-indicator {
+  color: red;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.recording-modal {
+  background-color: var(--background-primary);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  max-width: 500px;
+  width: 90vw;
+}
+
+.recording-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.recording-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recording-title h2 {
+  margin: 0;
+  color: var(--text-normal);
+}
+
+.recording-icon {
+  color: var(--text-error);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.recording-time {
+  font-size: 2em;
+  font-family: monospace;
+  color: var(--text-normal);
+  font-weight: bold;
+}
+
+.waveform {
+  width: 100%;
+  height: 80px;
+  margin: 20px 0;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.transcription-container {
+  margin: 20px 0;
+  padding: 16px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.transcription-text {
+  color: var(--text-normal);
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.recording-controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.recording-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.recording-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.recording-button.pause {
+  background-color: var(--text-warning);
+}
+
+.recording-button.cancel {
+  background-color: var(--text-error);
+}
+
+.recording-button.done {
+  background-color: var(--text-success);
+}
+
+.recording-button:hover {
+  opacity: 0.9;
+  transform: scale(1.1);
+}
+
+.recording-button:active {
+  transform: scale(0.95);
+}
+
+.voice2text-modal-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.voice2text-waveform-container {
+  width: 100%;
+  max-width: 300px;
+  height: 100px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 10px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.voice2text-waveform {
+  width: 100%;
+  height: 100%;
+  display: block;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.voice2text-timer {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-normal);
+  margin: 10px 0;
+}
+
+.voice2text-controls {
+  display: flex;
+  gap: 20px;
+  margin: 10px 0;
+}
+
+.voice2text-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--interactive-accent);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.voice2text-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.voice2text-transcription {
+  width: 100%;
+  max-width: 500px;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  display: none;
+}
+
+.voice2text-typing-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-normal);
+}
+
+.voice2text-typing-text span {
+  display: inline-block;
+  opacity: 0;
+  animation: fadeIn 0.1s forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.voice2text-transcribing {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.voice2text-transcribing-text {
+  color: var(--text-muted);
+}
+
+.voice2text-transcribing-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.voice2text-transcribing-dots span {
+  animation: dotAnimation 1.4s infinite;
+  opacity: 0;
+}
+
+.voice2text-transcribing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.voice2text-transcribing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotAnimation {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
