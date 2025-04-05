@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, Notice, requestUrl } from 'obsidian';
 import { RecordingModal } from './components/RecordingModal';
 import { AudioRecorder } from './components/AudioRecorder';
 
@@ -33,11 +33,10 @@ export default class Voice2TextPlugin extends Plugin {
     });
 
     // 添加状态栏项
-    this.statusBarItem = this.addStatusBarItem();
+    this.createStatusBarItem();
     this.statusBarItem.addClass('mod-clickable');
     this.statusBarItem.setAttribute('aria-label', '开始录音');
     this.statusBarItem.setAttribute('title', '点击开始录音');
-    this.statusBarItem.innerHTML = '🎙';
     this.statusBarItem.addEventListener('click', () => {
       this.startRecording();
     });
@@ -112,31 +111,62 @@ export default class Voice2TextPlugin extends Plugin {
     }
   }
 
-  async transcribeAudio(audioBlob: Blob): Promise<string> {
+  private async transcribeAudio(audioBlob: Blob): Promise<string> {
     try {
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.wav');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'zh'); // 设置为简体中文
-
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.settings.apiKey}`
-        },
-        body: formData
+      // 将音频数据转换为 base64
+      const reader = new FileReader();
+      const base64Audio = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(audioBlob);
       });
 
-      if (!response.ok) {
-        throw new Error('转写失败');
+      // 创建请求体
+      const requestBody = {
+        file: base64Audio,
+        model: 'whisper-1',
+        language: 'zh'
+      };
+
+      const response = await requestUrl({
+        url: 'https://api.openai.com/v1/audio/transcriptions',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.settings.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`转写失败: ${response.status} ${response.text}`);
       }
 
-      const result = await response.json();
-      return result.text;
+      const data = JSON.parse(response.text);
+      return data.text;
     } catch (error) {
       console.error('转写错误:', error);
-      throw new Error('转写失败: ' + error.message);
+      throw error;
     }
+  }
+
+  private createStatusBarItem(): void {
+    this.statusBarItem = this.addStatusBarItem();
+    const icon = document.createElement('span');
+    icon.setText('🎙');
+    this.statusBarItem.appendChild(icon);
+  }
+
+  private updateStatusBarIcon(isRecording: boolean): void {
+    if (!this.statusBarItem) return;
+    
+    // 清除现有内容
+    while (this.statusBarItem.firstChild) {
+      this.statusBarItem.removeChild(this.statusBarItem.firstChild);
+    }
+    
+    const icon = document.createElement('span');
+    icon.setText(isRecording ? '⏹' : '🎙');
+    this.statusBarItem.appendChild(icon);
   }
 }
 

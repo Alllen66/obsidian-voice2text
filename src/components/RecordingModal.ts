@@ -78,22 +78,33 @@ class AudioVisualizer {
 }
 
 export class RecordingModal extends Modal {
-  private timer: number = 0;
-  private timerInterval: number | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private isRecording: boolean = false;
   private isPaused: boolean = false;
-  private visualizer: AudioVisualizer;
+  private timerInterval: number | null = null;
+  private elapsedTime: number = 0;
+  private timerDisplay: HTMLElement | null = null;
+  private visualizer: AudioVisualizer | null = null;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private dataArray: Uint8Array | null = null;
+  private animationFrame: number | null = null;
   private transcriptionText: string = '';
   private isTranscribing: boolean = false;
   private transcribingContainer: HTMLElement | null = null;
+  private pauseButton: HTMLElement | null = null;
+  private onRecordingClose: (cancelled: boolean) => void;
 
   constructor(
     app: App,
-    private onRecordingClose: (cancelled: boolean) => void,
+    onRecordingClose: (cancelled: boolean) => void,
     private onPause: () => void,
     private onResume: () => void,
     private stream: MediaStream
   ) {
     super(app);
+    this.onRecordingClose = onRecordingClose;
   }
 
   onOpen() {
@@ -119,32 +130,18 @@ export class RecordingModal extends Modal {
     const controlsContainer = container.createDiv('voice2text-controls');
     
     // 创建取消按钮
-    const cancelButton = controlsContainer.createEl('button', { cls: 'voice2text-button' });
-    cancelButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    const cancelButton = this.createCancelButton();
     cancelButton.addEventListener('click', () => {
       this.stopRecording(true);
       this.close();
     });
 
     // 创建暂停/继续按钮
-    const pauseButton = controlsContainer.createEl('button', { cls: 'voice2text-button' });
-    const pauseIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
-    const playIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-    
-    pauseButton.innerHTML = pauseIcon;
-    pauseButton.addEventListener('click', () => {
-      if (this.isPaused) {
-        this.resumeRecording();
-        pauseButton.innerHTML = pauseIcon;
-      } else {
-        this.pauseRecording();
-        pauseButton.innerHTML = playIcon;
-      }
-    });
+    const pauseButton = this.createPauseButton();
+    this.updatePauseButton(this.isPaused);
 
     // 创建保存按钮
-    const saveButton = controlsContainer.createEl('button', { cls: 'voice2text-button' });
-    saveButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>';
+    const saveButton = this.createSaveButton();
     saveButton.addEventListener('click', () => {
       this.stopRecording(false);
       this.close();
@@ -152,52 +149,133 @@ export class RecordingModal extends Modal {
 
     // 创建转写文本容器
     const transcriptionContainer = container.createDiv('voice2text-transcription');
-    (transcriptionContainer as HTMLElement).style.display = 'none';
+    transcriptionContainer.addClass('voice2text-hidden');
 
     // 创建转写状态容器
     this.transcribingContainer = container.createDiv('voice2text-transcribing');
-    this.transcribingContainer.style.display = 'none';
-    this.transcribingContainer.innerHTML = '<span class="voice2text-transcribing-text">AI 转写中</span><span class="voice2text-transcribing-dots"><span>.</span><span>.</span><span>.</span></span>';
+    this.transcribingContainer.addClass('voice2text-hidden');
+    this.showTranscribing();
 
     // 初始化音频可视化器
-    this.visualizer = new AudioVisualizer(canvas);
-    this.visualizer.connectStream(this.stream);
+    this.initializeVisualizer(this.stream);
 
     // 开始计时
     this.startTimer();
   }
 
+  private createCancelButton(): HTMLElement {
+    const cancelButton = document.createElement('button');
+    cancelButton.addClass('voice2text-cancel-button');
+    
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '24');
+    svg.setAttribute('height', '24');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', '18');
+    line.setAttribute('y1', '6');
+    line.setAttribute('x2', '6');
+    line.setAttribute('y2', '18');
+    
+    const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line2.setAttribute('x1', '6');
+    line2.setAttribute('y1', '6');
+    line2.setAttribute('x2', '18');
+    line2.setAttribute('y2', '18');
+    
+    svg.appendChild(line);
+    svg.appendChild(line2);
+    cancelButton.appendChild(svg);
+    
+    return cancelButton;
+  }
+
+  private createPauseButton(): HTMLElement {
+    const pauseButton = document.createElement('button');
+    pauseButton.addClass('voice2text-pause-button');
+    
+    return pauseButton;
+  }
+
+  private createSaveButton(): HTMLElement {
+    const saveButton = document.createElement('button');
+    saveButton.addClass('voice2text-save-button');
+    
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '24');
+    svg.setAttribute('height', '24');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z');
+    
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', '17 21 17 13 7 13 7 21');
+    
+    const polyline2 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline2.setAttribute('points', '7 3 7 8 15 8');
+    
+    svg.appendChild(path);
+    svg.appendChild(polyline);
+    svg.appendChild(polyline2);
+    saveButton.appendChild(svg);
+    
+    return saveButton;
+  }
+
   private startTimer() {
     this.timerInterval = window.setInterval(() => {
       if (!this.isPaused) {
-        this.timer++;
-        const minutes = Math.floor(this.timer / 60);
-        const seconds = this.timer % 60;
-        const timerDisplay = this.contentEl.querySelector('.voice2text-timer');
-        if (timerDisplay) {
-          timerDisplay.setText(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        this.elapsedTime++;
+        const minutes = Math.floor(this.elapsedTime / 60);
+        const seconds = this.elapsedTime % 60;
+        this.timerDisplay = this.contentEl.querySelector('.voice2text-timer');
+        if (this.timerDisplay) {
+          this.timerDisplay.setText(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
         }
       }
     }, 1000);
   }
 
-  private pauseRecording() {
+  private initializeVisualizer(stream: MediaStream): void {
+    const canvas = this.contentEl.querySelector('.voice2text-waveform');
+    if (canvas instanceof HTMLCanvasElement) {
+      this.visualizer = new AudioVisualizer(canvas);
+      this.visualizer.connectStream(stream);
+    }
+  }
+
+  private pauseRecording(): void {
     this.isPaused = true;
     this.onPause();
-    this.visualizer.pause();
+    this.visualizer?.pause();
   }
 
-  private resumeRecording() {
+  private resumeRecording(): void {
     this.isPaused = false;
     this.onResume();
-    this.visualizer.resume();
+    this.visualizer?.resume();
   }
 
-  private stopRecording(cancelled: boolean) {
+  private stopRecording(cancelled: boolean = false): void {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
-    this.visualizer.stop();
+    this.visualizer?.stop();
     this.onRecordingClose(cancelled);
   }
 
@@ -205,20 +283,20 @@ export class RecordingModal extends Modal {
     this.transcriptionText = text;
     const transcriptionContainer = this.contentEl.querySelector('.voice2text-transcription');
     if (transcriptionContainer) {
-      (transcriptionContainer as HTMLElement).style.display = 'block';
+      transcriptionContainer.removeClass('voice2text-hidden');
       this.typeText(transcriptionContainer as HTMLElement, text);
     }
   }
 
   showTranscribing() {
     if (this.transcribingContainer) {
-      this.transcribingContainer.style.display = 'flex';
+      this.transcribingContainer.removeClass('voice2text-hidden');
     }
   }
 
   hideTranscribing() {
     if (this.transcribingContainer) {
-      this.transcribingContainer.style.display = 'none';
+      this.transcribingContainer.addClass('voice2text-hidden');
     }
   }
 
@@ -235,10 +313,92 @@ export class RecordingModal extends Modal {
   }
 
   onClose() {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
-    this.visualizer.stop();
+    this.visualizer?.stop();
     this.onRecordingClose(true);
+  }
+
+  private updatePauseButton(isPaused: boolean): void {
+    const pauseButton = this.pauseButton;
+    if (!pauseButton) return;
+
+    // 清除现有内容
+    while (pauseButton.firstChild) {
+      pauseButton.removeChild(pauseButton.firstChild);
+    }
+
+    if (isPaused) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '24');
+      svg.setAttribute('height', '24');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      
+      const rect1 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect1.setAttribute('x', '6');
+      rect1.setAttribute('y', '4');
+      rect1.setAttribute('width', '4');
+      rect1.setAttribute('height', '16');
+      
+      const rect2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect2.setAttribute('x', '14');
+      rect2.setAttribute('y', '4');
+      rect2.setAttribute('width', '4');
+      rect2.setAttribute('height', '16');
+      
+      svg.appendChild(rect1);
+      svg.appendChild(rect2);
+      pauseButton.appendChild(svg);
+    } else {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '24');
+      svg.setAttribute('height', '24');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '5 3 19 12 5 21 5 3');
+      
+      svg.appendChild(polygon);
+      pauseButton.appendChild(svg);
+    }
+  }
+
+  private showTranscribing(): void {
+    if (!this.transcribingContainer) return;
+    
+    // 清除现有内容
+    while (this.transcribingContainer.firstChild) {
+      this.transcribingContainer.removeChild(this.transcribingContainer.firstChild);
+    }
+
+    const textSpan = document.createElement('span');
+    textSpan.addClass('voice2text-transcribing-text');
+    textSpan.setText('AI 转写中');
+
+    const dotsSpan = document.createElement('span');
+    dotsSpan.addClass('voice2text-transcribing-dots');
+    
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      dot.setText('.');
+      dotsSpan.appendChild(dot);
+    }
+
+    this.transcribingContainer.appendChild(textSpan);
+    this.transcribingContainer.appendChild(dotsSpan);
   }
 } 
